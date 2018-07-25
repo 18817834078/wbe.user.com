@@ -14,3 +14,10 @@
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::prefix('api')->group(function (){
+    //所有商家
+    Route::get('shops','ApiController@shops');
+    //某个商家
+    Route::get('shop','ApiController@shop');
+});
