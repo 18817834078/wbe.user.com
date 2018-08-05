@@ -235,7 +235,8 @@ class ApiController extends Controller
             User::create([
                 'username'=>$request->username,
                 'password'=>bcrypt($request->password),
-                'tel'=>$request->tel
+                'tel'=>$request->tel,
+                'status'=>1,
             ]);
         }
         echo json_encode(['status'=>$status,'message'=>$message]);
