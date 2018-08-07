@@ -10,6 +10,7 @@ use App\model\Order;
 use App\model\OrderGood;
 use App\model\Shop;
 use App\SignatureHelper;
+use App\SphinxClient;
 use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,116 +24,173 @@ use function Psy\debug;
 class ApiController extends Controller
 {
     //所有商家
-    public function shops(){
-        $shops=Shop::all();
-        $data=[];
-        foreach ($shops as $key=>$value){
-            $data[$key]['id']=$value->id;
-            $data[$key]['shop_name']=$value->shop_name;
-            $data[$key]['shop_img']=$value->shop_img;
-            $data[$key]['shop_rating']=$value->shop_rating;
-            $data[$key]['brand']=$value->brand;
-            $data[$key]['on_time']=$value->on_time;
-            $data[$key]['fengniao']=$value->fengniao;
-            $data[$key]['bao']=$value->bao;
-            $data[$key]['piao']=$value->piao;
-            $data[$key]['zhun']=$value->zhun;
-            $data[$key]['start_send']=$value->start_send;
-            $data[$key]['send_cost']=$value->send_cost;
-            $distance=mt_rand(1,10000);
-            $data[$key]['distance']=$distance;
-            $estimate_time=ceil($distance/100);
-            $data[$key]['estimate_time']=$estimate_time;
-            $data[$key]['notice']=$value->notice;
-            $data[$key]['discount']=$value->discount;
+    public function shops(Request $request){
+        $search_id=[];
+        $data = [];
+        $shops=null;
+        if (!isset($request->keyword)){
+
+            if (!Redis::get('shops_json')) {
+                $shops = Shop::all();
+
+                foreach ($shops as $key => $value) {
+                    $data[$key]['id'] = $value->id;
+                    $data[$key]['shop_name'] = $value->shop_name;
+                    $data[$key]['shop_img'] = $value->shop_img;
+                    $data[$key]['shop_rating'] = $value->shop_rating;
+                    $data[$key]['brand'] = $value->brand;
+                    $data[$key]['on_time'] = $value->on_time;
+                    $data[$key]['fengniao'] = $value->fengniao;
+                    $data[$key]['bao'] = $value->bao;
+                    $data[$key]['piao'] = $value->piao;
+                    $data[$key]['zhun'] = $value->zhun;
+                    $data[$key]['start_send'] = $value->start_send;
+                    $data[$key]['send_cost'] = $value->send_cost;
+                    $distance = mt_rand(1, 10000);
+                    $data[$key]['distance'] = $distance;
+                    $estimate_time = ceil($distance / 100);
+                    $data[$key]['estimate_time'] = $estimate_time;
+                    $data[$key]['notice'] = $value->notice;
+                    $data[$key]['discount'] = $value->discount;
+                }
+                Redis::setex('shops_json',3600*24 ,json_encode($data));
+            }
+            return Redis::get('shops_json');
+        }else{
+            $cl = new SphinxClient ();
+            $cl->SetServer ( '127.0.0.1', 9312);
+//$cl->SetServer ( '10.6.0.6', 9312);
+//$cl->SetServer ( '10.6.0.22', 9312);
+//$cl->SetServer ( '10.8.8.2', 9312);
+            $cl->SetConnectTimeout ( 10 );
+            $cl->SetArrayResult ( true );
+// $cl->SetMatchMode ( SPH_MATCH_ANY);
+            $cl->SetMatchMode ( SPH_MATCH_EXTENDED2);
+            $cl->SetLimits(0, 1000);
+            $info = $request->keyword;
+            $res = $cl->Query($info, 'shops');//shopstore_search
+            if (isset($res['matches'])) {
+                foreach ($res['matches'] as $val) {
+                    $search_id[] = $val['id'];
+                }
+            }
+                $shops=Shop::whereIn('id',$search_id)->get();
+                foreach ($shops as $key => $value) {
+                    $data[$key]['id'] = $value->id;
+                    $data[$key]['shop_name'] = $value->shop_name;
+                    $data[$key]['shop_img'] = $value->shop_img;
+                    $data[$key]['shop_rating'] = $value->shop_rating;
+                    $data[$key]['brand'] = $value->brand;
+                    $data[$key]['on_time'] = $value->on_time;
+                    $data[$key]['fengniao'] = $value->fengniao;
+                    $data[$key]['bao'] = $value->bao;
+                    $data[$key]['piao'] = $value->piao;
+                    $data[$key]['zhun'] = $value->zhun;
+                    $data[$key]['start_send'] = $value->start_send;
+                    $data[$key]['send_cost'] = $value->send_cost;
+                    $distance = mt_rand(1, 10000);
+                    $data[$key]['distance'] = $distance;
+                    $estimate_time = ceil($distance / 100);
+                    $data[$key]['estimate_time'] = $estimate_time;
+                    $data[$key]['notice'] = $value->notice;
+                    $data[$key]['discount'] = $value->discount;
+                }
+                return json_encode($data);
+
+
         }
-        echo json_encode($data);
+
+
+
+
     }
     //某个商家
     public function shop(Request $request){
-        $shop=Shop::where('id','=',$request->id)->first();
-        $data=[];
-        $data['id']=$shop->id;
-        $data['shop_name']=$shop->shop_name;
-        $data['shop_img']=$shop->shop_img;
-        $data['shop_rating']=$shop->shop_rating;
-        $data['service_code']=$shop->service_code;
-        $service_code=mt_rand(1,50)/10;
-        $data['service_code']=$service_code;
-        $foods_code=mt_rand(1,50)/10;
-        $data['foods_code']=$foods_code;
-        $high_or_low=mt_rand(0,1);
-        $data['high_or_low']=$high_or_low;
-        $h_l_percent=mt_rand(1,99);
-        $data['h_l_percent']=$h_l_percent;
-        $data['brand']=$shop->brand;
-        $data['on_time']=$shop->on_time;
-        $data['fengniao']=$shop->fengniao;
-        $data['bao']=$shop->bao;
-        $data['piao']=$shop->piao;
-        $data['zhun']=$shop->zhun;
-        $data['start_send']=$shop->start_send;
-        $data['send_cost']=$shop->send_cost;
-        $distance=mt_rand(1,10000);
-        $data['distance']=$distance;
-        $estimate_time=ceil($distance/100);
-        $data['estimate_time']=$estimate_time;
-        $data['notice']=$shop->notice;
-        $data['discount']=$shop->discount;
-        //评价
-        $evaluate=[[
-                "user_id"=>12344,
-                "username"=> "w******k",
-                "user_img"=>"http://www.homework.com/images/slider-pic4.jpeg",
-                "time"=>"2017-2-22",
-                "evaluate_code"=>1,
-                "send_time"=>30,
-                "evaluate_details"=>"不怎么好吃"
-             ],[
-                "user_id"=>12344,
-                "username"=> "w******e",
-                "user_img"=>"http://www.homework.com/images/slider-pic4.jpeg",
-                "time"=>"2017-2-23",
-                "evaluate_code"=>4.5,
-                "send_time"=>30,
-                "evaluate_details"=>"很好吃"
+        if (!Redis::get('shop_json'.$request->id)) {
+            $shop = Shop::where('id', '=', $request->id)->first();
+            $data = [];
+            $data['id'] = $shop->id;
+            $data['shop_name'] = $shop->shop_name;
+            $data['shop_img'] = $shop->shop_img;
+            $data['shop_rating'] = $shop->shop_rating;
+            $data['service_code'] = $shop->service_code;
+            $service_code = mt_rand(1, 50) / 10;
+            $data['service_code'] = $service_code;
+            $foods_code = mt_rand(1, 50) / 10;
+            $data['foods_code'] = $foods_code;
+            $high_or_low = mt_rand(0, 1);
+            $data['high_or_low'] = $high_or_low;
+            $h_l_percent = mt_rand(1, 99);
+            $data['h_l_percent'] = $h_l_percent;
+            $data['brand'] = $shop->brand;
+            $data['on_time'] = $shop->on_time;
+            $data['fengniao'] = $shop->fengniao;
+            $data['bao'] = $shop->bao;
+            $data['piao'] = $shop->piao;
+            $data['zhun'] = $shop->zhun;
+            $data['start_send'] = $shop->start_send;
+            $data['send_cost'] = $shop->send_cost;
+            $distance = mt_rand(1, 10000);
+            $data['distance'] = $distance;
+            $estimate_time = ceil($distance / 100);
+            $data['estimate_time'] = $estimate_time;
+            $data['notice'] = $shop->notice;
+            $data['discount'] = $shop->discount;
+            //评价
+            $evaluate = [[
+                "user_id" => 12344,
+                "username" => "w******k",
+                "user_img" => "http://www.homework.com/images/slider-pic4.jpeg",
+                "time" => "2017-2-22",
+                "evaluate_code" => 1,
+                "send_time" => 30,
+                "evaluate_details" => "不怎么好吃"
+            ], [
+                "user_id" => 12344,
+                "username" => "w******e",
+                "user_img" => "http://www.homework.com/images/slider-pic4.jpeg",
+                "time" => "2017-2-23",
+                "evaluate_code" => 4.5,
+                "send_time" => 30,
+                "evaluate_details" => "很好吃"
             ]
-        ];
-        foreach ($evaluate as $value){
-            $data['evaluate'][]=$value;
-        }
-        //菜品与菜品分类
-        $menu_categories=MenuCategory::all()->where('shop_id','=',$shop->id);
-        $menus=Menu::all()->where('shop_id','=',$shop->id);
-        $commodity=[];
-        foreach ($menu_categories as $key=>$menu_category){
-            $commodity[$key]['description']=$menu_category->description;
-            $commodity[$key]['is_selected']=$menu_category->is_selected;
-            $commodity[$key]['name']=$menu_category->name;
-            $commodity[$key]['type_accumulation']=$menu_category->id;
-            $k=0;
-            foreach ($menus as $menu){
-                if ($menu->category_id==$menu_category->id){
-                    $commodity[$key]['goods_list'][$k]['goods_id']=$menu->id;
-                    $commodity[$key]['goods_list'][$k]['goods_name']=$menu->goods_name;
-                    $commodity[$key]['goods_list'][$k]['rating']=$menu->rating;
-                    $commodity[$key]['goods_list'][$k]['goods_price']=$menu->goods_price;
-                    $commodity[$key]['goods_list'][$k]['description']=$menu->description;
-                    $commodity[$key]['goods_list'][$k]['month_sales']=$menu->month_sales;
-                    $commodity[$key]['goods_list'][$k]['rating_count']=$menu->rating_count;
-                    $commodity[$key]['goods_list'][$k]['tips']=$menu->tips;
-                    $commodity[$key]['goods_list'][$k]['satisfy_count']=$menu->satisfy_count;
-                    $commodity[$key]['goods_list'][$k]['satisfy_rate']=$menu->satisfy_rate;
-                    $commodity[$key]['goods_list'][$k]['goods_img']=$menu->goods_img;
-                    $k++;
+            ];
+            foreach ($evaluate as $value) {
+                $data['evaluate'][] = $value;
+            }
+            //菜品与菜品分类
+            $menu_categories = MenuCategory::all()->where('shop_id', '=', $shop->id);
+            $menus = Menu::all()->where('shop_id', '=', $shop->id);
+            $commodity = [];
+            foreach ($menu_categories as $key => $menu_category) {
+                $commodity[$key]['description'] = $menu_category->description;
+                $commodity[$key]['is_selected'] = $menu_category->is_selected;
+                $commodity[$key]['name'] = $menu_category->name;
+                $commodity[$key]['type_accumulation'] = $menu_category->id;
+                $k = 0;
+                foreach ($menus as $menu) {
+                    if ($menu->category_id == $menu_category->id) {
+                        $commodity[$key]['goods_list'][$k]['goods_id'] = $menu->id;
+                        $commodity[$key]['goods_list'][$k]['goods_name'] = $menu->goods_name;
+                        $commodity[$key]['goods_list'][$k]['rating'] = $menu->rating;
+                        $commodity[$key]['goods_list'][$k]['goods_price'] = $menu->goods_price;
+                        $commodity[$key]['goods_list'][$k]['description'] = $menu->description;
+                        $commodity[$key]['goods_list'][$k]['month_sales'] = $menu->month_sales;
+                        $commodity[$key]['goods_list'][$k]['rating_count'] = $menu->rating_count;
+                        $commodity[$key]['goods_list'][$k]['tips'] = $menu->tips;
+                        $commodity[$key]['goods_list'][$k]['satisfy_count'] = $menu->satisfy_count;
+                        $commodity[$key]['goods_list'][$k]['satisfy_rate'] = $menu->satisfy_rate;
+                        $commodity[$key]['goods_list'][$k]['goods_img'] = $menu->goods_img;
+                        $k++;
+                    }
                 }
             }
+
+            $data['commodity'] = $commodity;
+            Redis::setex('shop_json'.$request->id,3600*24,json_encode($data));
+            //echo json_encode($data);
         }
-
-
-        $data['commodity']=$commodity;
-        echo json_encode($data);
-
+        return Redis::get('shop_json'.$request->id);
     }
     //短信验证码
     public function sms(){
